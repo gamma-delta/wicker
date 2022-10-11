@@ -1,5 +1,8 @@
 #![doc = include_str!("../README.md")]
 
+pub mod iter;
+use iter::*;
+
 use itertools::{Either, Itertools};
 use rand::Rng;
 
@@ -7,7 +10,7 @@ use rand::Rng;
 pub struct WeightedPicker<T> {
     prob: Vec<f64>,
     alias: Vec<usize>,
-    items: Vec<T>,
+    items: Vec<(T, f64)>,
 }
 
 impl<T> WeightedPicker<T> {
@@ -16,7 +19,6 @@ impl<T> WeightedPicker<T> {
     items and weights.
 
     Panics if you pass it an empty Vec.
-
     */
     #[must_use]
     pub fn new(entries: Vec<(T, f64)>) -> Self {
@@ -26,7 +28,8 @@ impl<T> WeightedPicker<T> {
         let len = entries.len();
         let average = (len as f64).recip();
 
-        let (items, weights): (Vec<_>, Vec<_>) = entries.into_iter().unzip();
+        let weights = entries.iter().map(|(_, w)| *w).collect_vec();
+        let items = entries;
 
         let (mut small, mut large): (Vec<_>, Vec<_>) = weights
             .iter()
@@ -82,7 +85,7 @@ impl<T> WeightedPicker<T> {
     /// Randomly pick an item from the list.
     #[must_use]
     pub fn get<R: Rng + ?Sized>(&self, rng: &mut R) -> &T {
-        &self.items[self.get_idx(rng)]
+        &self.items[self.get_idx(rng)].0
     }
 
     /// Randomly pick an *index* from the list.
@@ -111,7 +114,7 @@ impl<T> WeightedPicker<T> {
 
     /// Manually index into the picker's array.
     pub fn get_by_idx(&self, idx: usize) -> Option<&T> {
-        self.items.get(idx)
+        self.items.get(idx).map(|(it, _)| it)
     }
 
     /// Manually index into the picker's array.
@@ -121,7 +124,7 @@ impl<T> WeightedPicker<T> {
     /// nor any way to add or remove possible values.
     #[must_use]
     pub fn get_mut_by_idx(&mut self, idx: usize) -> Option<&mut T> {
-        self.items.get_mut(idx)
+        self.items.get_mut(idx).map(|(it, _)| it)
     }
 
     /// Convenience method for creating a WeightedPicker and then calling `get`,
@@ -133,7 +136,28 @@ impl<T> WeightedPicker<T> {
         // this would be unsound to use after removal,
         // but fortunately we don't need to use it again
         // not sure why i can't move out of it.
-        wp.items.remove(idx)
+        wp.items.swap_remove(idx).0
+    }
+
+    /**
+    Iterate through the elements in order of probability, from least to most.
+
+    This requires sorting internally, so is `O(n log(n))`.
+    ```rust
+    # use wicker::{WeightedPicker, iter::Iter};
+    let picker = WeightedPicker::new(vec![
+    ("hello", 0.3),
+    ("wicker", 10.0),
+    ("this", 3.0),
+    ("world", 1.0),
+    ("is", 5.0),
+    ]);
+    let v = picker.iter().copied().collect::<Vec<_>>();
+    assert_eq!(v, &["hello", "world", "this", "is", "wicker"]);
+    ```
+    */
+    pub fn iter(&self) -> Iter<'_, T> {
+        Iter::new(self)
     }
 }
 

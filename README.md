@@ -17,7 +17,7 @@ to the algorithm used. However, you can edit each associated value after creatio
 ## Sample Usage
 
 ```rust
-# use cogs_gamedev::chance::WeightedPicker;
+# use wicker::WeightedPicker;
 let picker = WeightedPicker::new(vec![
     ("common", 10.0),
     ("uncommon", 5.0),
